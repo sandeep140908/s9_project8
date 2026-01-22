@@ -3,114 +3,119 @@ import axios from "axios";
 import { Link } from "react-router-dom";
 
 const Recipe = () => {
-    const [food, setFood] = useState("");
-    const [recipe, setRecipe] = useState(null);
-    const [error, setError] = useState("");
-    const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [recipes, setRecipes] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-    const fetchRecipe = async () => {
-        if (!food) {
-            setError("Please enter a food item");
-            return;
-        }
+  const fetchRecipes = async () => {
+    if (!search.trim()) {
+      setError("Please enter a food name");
+      return;
+    }
 
-        setError("");
-        setRecipe(null);
-        setLoading(true);
+    setLoading(true);
+    setError("");
+    setRecipes([]);
 
-        try {
-            const res = await axios.get(
-                `https://www.themealdb.com/api/json/v1/1/search.php?s=${food}`
-            );
+    try {
+      const res = await axios.get(
+        `https://www.themealdb.com/api/json/v1/1/search.php?s=${search}`
+      );
 
-            if (!res.data.meals) {
-                throw new Error("No meals found");
-            }
+      if (!res.data.meals) {
+        setError("No recipes found. Try a simpler or related name.");
+      } else {
+        setRecipes(res.data.meals);
+      }
+    } catch {
+      setError("Unable to fetch recipes. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-            setRecipe(res.data.meals[0]);
-        } catch {
-            setError("Recipe not found. Try a simpler name (e.g., Cake, Pasta).");
-        } finally {
-            setLoading(false);
-        }
-    };
+  const getIngredients = (meal) => {
+    const list = [];
+    for (let i = 1; i <= 20; i++) {
+      const ing = meal[`strIngredient${i}`];
+      const meas = meal[`strMeasure${i}`];
+      if (ing && ing.trim()) {
+        list.push(`${ing} - ${meas}`);
+      }
+    }
+    return list;
+  };
 
-    return (
-        <div className="glass-container" style={{ maxWidth: "900px" }}>
-            <Link to="/">Back to Home</Link>
-            <h1>Culinary Master</h1>
-            <p>Find delicious recipes and cooking instructions.</p>
+  return (
+    <div className="glass-container" style={{ maxWidth: "1100px" }}>
+      <Link to="/">⬅ Back to Home</Link>
 
-            <input
-                placeholder="Enter Food Name (e.g., Pasta)"
-                value={food}
-                onChange={(e) => setFood(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && fetchRecipe()}
-            />
-            <button onClick={fetchRecipe} disabled={loading}>
-                {loading ? "Cooking..." : "Find Recipe"}
-            </button>
+      <h1>Recipe Search 🍽️</h1>
+      <p>Search recipes by name (Indian & International)</p>
 
-            {loading && <div className="loader"></div>}
+      <input
+        placeholder="Enter food name (e.g. Biryani, Pasta, Cake)"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && fetchRecipes()}
+      />
 
-            {error && <div className="error-message">{error}</div>}
+      <button onClick={fetchRecipes} disabled={loading}>
+        {loading ? "Searching..." : "Search"}
+      </button>
 
-            {recipe && (
-                <div style={{ marginTop: "2rem", textAlign: "left" }}>
-                    <div style={{
-                        background: "rgba(0,0,0,0.2)",
-                        borderRadius: "20px",
-                        padding: "2rem",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center"
-                    }}>
-                        <h2>{recipe.strMeal}</h2>
-                        <span style={{
-                            background: "#fff",
-                            color: "#333",
-                            padding: "0.3rem 0.8rem",
-                            borderRadius: "15px",
-                            fontSize: "0.9rem",
-                            marginBottom: "1rem",
-                            fontWeight: "bold"
-                        }}>
-                            {recipe.strCategory} | {recipe.strArea}
-                        </span>
+      {loading && <div className="loader"></div>}
+      {error && <p className="error-message">{error}</p>}
 
-                        <img
-                            src={recipe.strMealThumb}
-                            alt={recipe.strMeal}
-                            style={{ maxWidth: "300px", borderRadius: "15px", boxShadow: "0 5px 15px rgba(0,0,0,0.3)" }}
-                        />
+      {recipes.map((meal) => (
+        <div
+          key={meal.idMeal}
+          style={{
+            marginTop: "2rem",
+            padding: "2rem",
+            borderRadius: "20px",
+            background: "rgba(0,0,0,0.2)"
+          }}
+        >
+          <h2>{meal.strMeal}</h2>
+          <p>
+            <b>Category:</b> {meal.strCategory} |{" "}
+            <b>Origin:</b> {meal.strArea}
+          </p>
 
-                        <div style={{ marginTop: "1.5rem", width: "100%" }}>
-                            <h3>Instructions</h3>
-                            <p style={{ whiteSpace: "pre-wrap", fontSize: "1rem", lineHeight: "1.7" }}>
-                                {recipe.strInstructions}
-                            </p>
-                        </div>
+          <img
+            src={meal.strMealThumb}
+            alt={meal.strMeal}
+            style={{ maxWidth: "300px", borderRadius: "15px" }}
+          />
 
-                        {recipe.strYoutube && (
-                            <a
-                                href={recipe.strYoutube}
-                                target="_blank"
-                                rel="noreferrer"
-                                style={{
-                                    marginTop: "1rem",
-                                    background: "#FF0000",
-                                    color: "white",
-                                    display: "inline-block"
-                                }}
-                            >
-                                Watch on YouTube
-                            </a>
-                        )}
-                    </div>
-                </div>
-            )}
+          <h3>Ingredients</h3>
+          <ul>
+            {getIngredients(meal).map((item, idx) => (
+              <li key={idx}>{item}</li>
+            ))}
+          </ul>
+
+          <h3>Instructions</h3>
+          <p style={{ whiteSpace: "pre-wrap" }}>
+            {meal.strInstructions}
+          </p>
+
+          {meal.strYoutube && (
+            <a
+              href={meal.strYoutube}
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: "red", fontWeight: "bold" }}
+            >
+              ▶ Watch Video
+            </a>
+          )}
         </div>
-    );
+      ))}
+    </div>
+  );
 };
 
 export default Recipe;

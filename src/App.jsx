@@ -5,6 +5,8 @@ import GenderPopulation from "./components/Population"
 import Education from "./components/Education"
 import WaterResources from "./components/Water"
 import Recipe from "./components/Recipe"
+import "./leafletIconFix";
+
 
 
 function App() {

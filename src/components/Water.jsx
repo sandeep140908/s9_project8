@@ -8,64 +8,64 @@ const WaterResources = () => {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
 
-    const fetchWaterResources = async () => {
-        if (!city) {
-            setError("Please enter a city name");
-            return;
-        }
+const fetchWaterResources = async () => {
+  if (!city.trim()) {
+    setError("Please enter a city name");
+    return;
+  }
 
-        setError("");
-        setResources([]);
-        setLoading(true);
+  setLoading(true);
+  setError("");
+  setResources([]);
 
-        const query = `
-        [out:json][timeout:25];
-        area[name="${city}"]->.searchArea;
-        (
-          way["waterway"="river"](area.searchArea);
-          way["natural"="water"](area.searchArea);
-          relation["waterway"="river"](area.searchArea);
-          relation["natural"="water"](area.searchArea);
-        );
-        out tags;
-        `;
+  const query = `
+    [out:json][timeout:25];
+    {{geocodeArea:${city}}}->.searchArea;
+    (
+      way["waterway"="river"](area.searchArea);
+      way["natural"="water"](area.searchArea);
+      relation["waterway"="river"](area.searchArea);
+      relation["natural"="water"](area.searchArea);
+    );
+    out tags center;
+  `;
 
-        try {
-            const res = await axios.post(
-                "https://overpass-api.de/api/interpreter",
-                query,
-                { headers: { "Content-Type": "text/plain" } }
-            );
+  try {
+    const response = await axios.get(
+      "https://overpass-api.de/api/interpreter",
+      { params: { data: query } }
+    );
 
-            if (!res.data.elements || res.data.elements.length === 0) {
-                setError("No major water resources found in this area.");
-            } else {
-                // Filter out unnamed resources to reduce noise
-                const namedResources = res.data.elements.filter(item => item.tags && item.tags.name);
+    const elements = response.data?.elements || [];
 
-                if (namedResources.length === 0 && res.data.elements.length > 0) {
-                    // If we have resources but no names, maybe show generic counts or just "Unnamed Water Body"
-                    setError("Found unnamed water bodies, but no named rivers/lakes.");
-                } else {
-                    // remove duplicates based on name
-                    const unique = [];
-                    const names = new Set();
-                    for (const item of namedResources) {
-                        if (!names.has(item.tags.name)) {
-                            names.add(item.tags.name);
-                            unique.push(item);
-                        }
-                    }
-                    setResources(unique);
-                    if (unique.length === 0) setError("No named water resources found.");
-                }
-            }
-        } catch {
-            setError("Unable to fetch water resources. API might be busy.");
-        } finally {
-            setLoading(false);
-        }
-    };
+    if (elements.length === 0) {
+      setError("No water resources found. Try a major city.");
+      return;
+    }
+
+    // Keep only unique named resources
+    const unique = [];
+    const seen = new Set();
+
+    for (const item of elements) {
+      const name = item.tags?.name;
+      if (name && !seen.has(name)) {
+        seen.add(name);
+        unique.push(item);
+      }
+    }
+
+    if (unique.length === 0) {
+      setError("Water bodies exist, but no named rivers/lakes found.");
+    } else {
+      setResources(unique);
+    }
+  } catch (err) {
+    setError("Overpass API overloaded. Please try again later.");
+  } finally {
+    setLoading(false);
+  }
+};
 
     return (
         <div className="glass-container">
